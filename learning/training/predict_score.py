@@ -65,7 +65,8 @@ def make_crop_data_batch(render_size, ob_in_cams, mesh, rgb, depth, K, crop_rati
   B = len(ob_in_cams)
   poseAs = torch.as_tensor(ob_in_cams, dtype=torch.float, device='cuda')
 
-  bs = 512
+  bs = int(os.environ.get("CARI4D_RENDER_BATCH", "512"))
+  print(f"CARI4D_SCORE_RENDER_BATCH={bs}")
   rgb_rs = []
   depth_rs = []
   xyz_map_rs = []
@@ -175,7 +176,9 @@ class ScorePredictor:
     def find_best_among_pairs(pose_data:BatchPoseData):
       ids = []
       scores = []
-      bs = pose_data.rgbAs.shape[0]
+      score_model_batch = os.environ.get("CARI4D_SCORE_MODEL_BATCH", "")
+      bs = int(score_model_batch) if score_model_batch else pose_data.rgbAs.shape[0]
+      print(f"CARI4D_SCORE_MODEL_BATCH={bs}")
       for b in range(0, pose_data.rgbAs.shape[0], bs):
         A = torch.cat([pose_data.rgbAs[b:b+bs].cuda(), pose_data.xyz_mapAs[b:b+bs].cuda()], dim=1).float()
         B = torch.cat([pose_data.rgbBs[b:b+bs].cuda(), pose_data.xyz_mapBs[b:b+bs].cuda()], dim=1).float()
@@ -215,4 +218,3 @@ class ScorePredictor:
       return scores, canvas
 
     return scores, None
-

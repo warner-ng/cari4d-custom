@@ -30,7 +30,8 @@ def make_crop_data_batch(render_size, ob_in_cams, mesh, rgb, depth, K, crop_rati
   B = len(ob_in_cams)
   poseA = torch.as_tensor(ob_in_cams, dtype=torch.float, device='cuda')
 
-  bs = 512
+  bs = int(os.environ.get("CARI4D_RENDER_BATCH", "512"))
+  print(f"CARI4D_RENDER_BATCH={bs}")
   rgb_rs = []
   depth_rs = []
   normal_rs = []
@@ -151,7 +152,8 @@ class PoseRefinePredictor:
       normal_map = None
 
     crop_ratio = self.cfg['crop_ratio']
-    bs = 1024
+    bs = int(os.environ.get("CARI4D_MODEL_BATCH", "1024"))
+    print(f"CARI4D_REFINE_MODEL_BATCH={bs}")
 
     B_in_cams = torch.as_tensor(ob_centered_in_cams, device='cuda', dtype=torch.float)
     if mesh_tensors is None:
@@ -278,4 +280,3 @@ class PoseRefinePredictor:
       return B_in_cams_out, canvas
 
     return B_in_cams_out, None
-

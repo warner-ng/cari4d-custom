@@ -166,8 +166,8 @@ class HORefineRunner(BehaveFPNLFRenderer):
 
         vis_input = True
         if vis_input:
-            out_path = osp.join(out_root, f'{save_name}+{seq_name}_it{cfg.refine_iters}_input.mp4')
-            vw_input = imageio.get_writer(out_path, fps=15)
+            out_path_input = osp.join(out_root, f'{save_name}+{seq_name}_it{cfg.refine_iters}_input.mp4')
+            vw_input = imageio.get_writer(out_path_input, fps=30)
         for start in tqdm(range(0, len(frames_packed), clip_len)):
             end = min(start + clip_len, len(frames_packed))
             if end - start < clip_len:
@@ -558,6 +558,9 @@ class HORefineRunner(BehaveFPNLFRenderer):
             finally:
                 pass
         vw.close()
+        if vis_input:
+            vw_input.close()
+            print(f'input visualization saved to {out_path_input}')
         print(f'visualization saved to {out_path}')
         # save result as one pth file 
         pth_file = f'{cfg.outpath}/{save_name}/{seq_name}.pth'
@@ -669,4 +672,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-

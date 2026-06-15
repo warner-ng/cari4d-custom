@@ -70,12 +70,13 @@ def estimate_metric_scale(scorer, refiner, glctx, outdir, hy_file, color, depth,
     
     """
     fname = osp.basename(hy_file)
+    stem = osp.splitext(fname)[0]
 
     # save color and depth to output dir
     name = osp.splitext(osp.basename(hy_file))[0]
     outdir_i = f'{outdir}/{name}'
     os.makedirs(outdir_i, exist_ok=True)
-    mesh_out = osp.join(outdir_i, osp.basename(hy_file).replace('_rgba.obj', '_align.obj'))
+    mesh_out = osp.join(outdir_i, f'{stem}.obj')
     if osp.isfile(mesh_out):
         print(mesh_out, 'already exists, exiting...')
         return
@@ -96,10 +97,10 @@ def estimate_metric_scale(scorer, refiner, glctx, outdir, hy_file, color, depth,
     # dilate the mask
     obj_pts = xyz_map[mask_o > 127].reshape((-1, 3))
     obj_colors = color[mask_o > 127].reshape((-1, 3))
-    trimesh.PointCloud(obj_pts, obj_colors / 255.).export(f'{debug_dir}/{fname.replace("_rgba.obj", f"_obj_pts.ply")}')
+    trimesh.PointCloud(obj_pts, obj_colors / 255.).export(f'{debug_dir}/{stem}_obj_pts.ply')
 
     for i in range(3): # coarse to fine and then save, in total 3 iterations.
-        outfile = f'{outdir_i}/{fname.replace("_rgba.obj", "_fp-res.json")}'
+        outfile = f'{outdir_i}/{stem}_fp-res.json'
         if osp.isfile(outfile):
             # load results and init the range from best K
             res = json.load(open(outfile))
@@ -129,7 +130,7 @@ def estimate_metric_scale(scorer, refiner, glctx, outdir, hy_file, color, depth,
                 print(mesh_out, 'saved with scale', best_scale)
                 break
         else:
-            scale_candidates = np.linspace(0.03, 3.0, 30)
+            scale_candidates = np.linspace(0.03, 3.0, int(os.environ.get("CARI4D_SCALE_CANDIDATES", "30")))
         print(f'{osp.basename(hy_file)} scale candidates: {scale_candidates}')
 
         # give a range of scales and compute the best scale
@@ -179,7 +180,7 @@ def estimate_metric_scale(scorer, refiner, glctx, outdir, hy_file, color, depth,
         pose_best = pose_results[best_idx]
         mesh_best.vertices = np.matmul(mesh_best.vertices, pose_best[:3, :3].T) + pose_best[:3, 3]
         # get fname of this hy3d file
-        trimesh.PointCloud(mesh_best.vertices).export(f'{outdir}/{fname.replace("_rgba.obj", f"_best_{best_scale:.3f}_obj.ply")}')
+        trimesh.PointCloud(mesh_best.vertices).export(f'{outdir}/{stem}_best_{best_scale:.3f}_obj.ply')
         # save scales and chamf scores as json file
         # pick the top 2 scales with lowest chamfer distance
         top2_scales = scale_candidates[np.argsort(chamfs)[:2]]
@@ -207,5 +208,3 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     fp_scale_estimator(args)
-
-

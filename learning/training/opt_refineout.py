@@ -531,25 +531,27 @@ class RefineOutOptimizer(BaseBehaveVideoData):
                 video_file_out = f'{self.exp_dir}/{seq_name}+step{step:06d}.mp4'
                 vw = imageio.get_writer(video_file_out,'FFMPEG', fps=30)
 
-                for chunk_ind in tqdm(range(0, debug_len, batch_size)):
-                    frames_pr_chunk = frames_pr[chunk_ind:chunk_ind+batch_size]
-                    chunk_end = min(chunk_ind + batch_size, len(frames_pr))
+                viz_batch_size = max(1, int(os.environ.get("CARI4D_OPT_VIZ_BATCH", str(batch_size))))
+                print(f"CARI4D_OPT_VIZ_BATCH={viz_batch_size}")
+                for chunk_ind in tqdm(range(0, debug_len, viz_batch_size)):
+                    chunk_end = min(chunk_ind + viz_batch_size, len(frames_pr))
+                    frames_pr_chunk = frames_pr[chunk_ind:chunk_end]
                     print(f"Visualizing step {step}, chunk {chunk_ind}->{chunk_end}")
                     batch_size_actual = chunk_end - chunk_ind
                     # get smpl and obj verts, no grad for this 
                     with torch.no_grad():
                         smplh_out = smplh_model(
-                            betas=opt_dict['betas'][chunk_ind:chunk_ind+batch_size],
-                            body_pose=opt_dict['smpl_pose_body'][chunk_ind:chunk_ind+batch_size],
-                            global_orient=opt_dict['smpl_pose_global'][chunk_ind:chunk_ind+batch_size],
-                            transl=opt_dict['smpl_trans'][chunk_ind:chunk_ind+batch_size],
+                            betas=opt_dict['betas'][chunk_ind:chunk_end],
+                            body_pose=opt_dict['smpl_pose_body'][chunk_ind:chunk_end],
+                            global_orient=opt_dict['smpl_pose_global'][chunk_ind:chunk_end],
+                            transl=opt_dict['smpl_trans'][chunk_ind:chunk_end],
                             left_hand_pose=self.mean_lhand.repeat(batch_size_actual, 1),
                             right_hand_pose=self.mean_rhand.repeat(batch_size_actual, 1), # use mean hand poses 
                             return_verts=True,
                             return_full_pose=True)
                         # get obj verts 
-                        obj_rot = axis_angle_to_matrix(opt_dict['obj_axis'][chunk_ind:chunk_ind+batch_size])
-                        obj_trans = opt_dict['obj_trans'][chunk_ind:chunk_ind+batch_size]
+                        obj_rot = axis_angle_to_matrix(opt_dict['obj_axis'][chunk_ind:chunk_end])
+                        obj_trans = opt_dict['obj_trans'][chunk_ind:chunk_end]
                         obj_pts_batch = obj_pts[None].to(self.device).repeat(batch_size_actual, 1, 1)
                         obj_verts_posed = torch.matmul(opt_dict['obj_verts'][None].repeat(batch_size_actual, 1, 1), obj_rot.permute(0, 2, 1)) + obj_trans[:, None]
                     # get verts comb 
@@ -608,17 +610,17 @@ class RefineOutOptimizer(BaseBehaveVideoData):
                         joints_25_proj_xy = joints_25_proj[:, :, :2] / joints_25_proj[:, :, 2:3] / scale_ratio
 
                         # visualize the masks for debug 
-                        color_obj = Utils.nvdiff_color_depth_render(opt_dict['K_rois'][chunk_ind:chunk_ind+batch_size], self.glctx, opt_dict['mesh_tensors_obj'], (rend_size, rend_size), obj_verts_posed, depth_only=False)[0]
+                        color_obj = Utils.nvdiff_color_depth_render(opt_dict['K_rois'][chunk_ind:chunk_end], self.glctx, opt_dict['mesh_tensors_obj'], (rend_size, rend_size), obj_verts_posed, depth_only=False)[0]
                         mask_obj = color_obj.mean(-1) 
-                        image_rend = opt_dict['keep_masks'][chunk_ind:chunk_ind+batch_size].to(self.device) * mask_obj.float() 
-                        image_refs_chunk = opt_dict['image_refs'][chunk_ind:chunk_ind+batch_size]
+                        image_rend = opt_dict['keep_masks'][chunk_ind:chunk_end].to(self.device) * mask_obj.float() 
+                        image_refs_chunk = opt_dict['image_refs'][chunk_ind:chunk_end]
                         sil_viz = torch.cat([torch.stack([image_refs_chunk, image_rend.cpu(), torch.zeros_like(image_refs_chunk)], -1),
                                             mask_obj.float().unsqueeze(-1).repeat(1, 1, 1, 3).cpu()], 2)
-                        cont_mask = opt_dict['contact_mask'][chunk_ind:chunk_ind+batch_size].float().cpu().numpy()
+                        cont_mask = opt_dict['contact_mask'][chunk_ind:chunk_end].float().cpu().numpy()
 
                         # get static mask 
                         kernel = torch.ones(1, 1, 5).to(self.device) # dilate to one neighbourhood
-                        cont_mask_dilate = F.conv1d(opt_dict['contact_mask'][chunk_ind:chunk_ind+batch_size].mean(-1).view(1, 1, -1), kernel, padding=2)
+                        cont_mask_dilate = F.conv1d(opt_dict['contact_mask'][chunk_ind:chunk_end].mean(-1).view(1, 1, -1), kernel, padding=2)
                         static_mask = 1 - (cont_mask_dilate > 0).float().view(-1) 
                         
                     for j, (img, vf, vs) in enumerate(zip(rgbs, viz_front, viz_side)):

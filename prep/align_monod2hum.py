@@ -98,7 +98,7 @@ class Monodepth2HumanAligner(MonodepthAligner):
             smpl_verts_k = np.matmul(gt_smpl_verts, w2c[:3, :3].T) + w2c[:3, 3]
             dists_min = np.zeros(len(smpl_verts_k)) - 1  # dummy data
 
-            chunk_size = 640 if args.data_source == 'hodome' else 196
+            chunk_size = args.render_chunk_size
             for i in tqdm(range(0, video_length, chunk_size)):
                 smpl_verts_k_chunk = torch.from_numpy(smpl_verts_k[i:i + chunk_size]).to(device).float()
                 verts_comb = smpl_verts_k_chunk
@@ -174,7 +174,9 @@ def child_run(args, kid_to_run):
 
 
 if __name__ == '__main__':
-    args = MonodepthAligner.get_parser().parse_args()
+    parser = MonodepthAligner.get_parser()
+    parser.add_argument('--render_chunk_size', type=int, default=96)
+    args = parser.parse_args()
     import multiprocessing as mp
     import time
     from copy import deepcopy
