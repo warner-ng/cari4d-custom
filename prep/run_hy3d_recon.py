@@ -43,6 +43,8 @@ def parse_args():
     parser.add_argument("--crop_size", type=int, default=512,
                         help="Output RGBA image size (default: 512)")
     parser.add_argument("--seed", type=int, default=600, help="Random seed (default: 600)")
+    parser.add_argument("--octree_resolution", type=int, default=128,
+                        help="Hunyuan3D surface extraction resolution (default: 384)")
     parser.add_argument("--skip_hy3d", action="store_true",
                         help="Skip Hunyuan3D inference, only do RGBA extraction")
     parser.add_argument("--skip_glb2obj", action="store_true",
@@ -148,7 +150,7 @@ def crop_rgba(rgb, mask, margin=0.2, crop_size=512):
     return rgba_img
 
 
-def run_hunyuan3d(rgba_img, outdir, glb_name, seed=600):
+def run_hunyuan3d(rgba_img, outdir, glb_name, seed=600, octree_resolution=128):
     """Run Hunyuan3D shape + texture generation."""
     from hy3dgen.shapegen import Hunyuan3DDiTFlowMatchingPipeline
     from hy3dgen.texgen import Hunyuan3DPaintPipeline
@@ -162,7 +164,7 @@ def run_hunyuan3d(rgba_img, outdir, glb_name, seed=600):
         model_path, subfolder='hunyuan3d-paint-v2-0-turbo'
     )
 
-    mesh = pipeline_shapegen(image=rgba_img)[0]
+    mesh = pipeline_shapegen(image=rgba_img, octree_resolution=octree_resolution)[0]
     print('Shape generation done')
     mesh = pipeline_texgen(mesh, image=rgba_img)
     print('Texture generation done')
@@ -235,7 +237,10 @@ def main():
         return
 
     # Step 5: Run Hunyuan3D
-    glb_path = run_hunyuan3d(rgba_img, outdir, glb_name, seed=args.seed)
+    glb_path = run_hunyuan3d(
+        rgba_img, outdir, glb_name, seed=args.seed,
+        octree_resolution=args.octree_resolution,
+    )
 
     if args.skip_glb2obj:
         print('Skipping GLB to OBJ conversion (--skip_glb2obj)')

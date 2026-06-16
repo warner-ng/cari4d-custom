@@ -1,3 +1,9 @@
+export CUDA_VISIBLE_DEVICES="${CUDA_VISIBLE_DEVICES:-1}"
+export CUDA_DEVICE_ORDER="${CUDA_DEVICE_ORDER:-PCI_BUS_ID}"
+export CARI4D_RENDER_BATCH="${CARI4D_RENDER_BATCH:-8}"
+export CARI4D_MODEL_BATCH="${CARI4D_MODEL_BATCH:-128}"
+export CARI4D_OPT_VIZ_BATCH="${CARI4D_OPT_VIZ_BATCH:-64}"
+
 video=data/cari4d-demo/behave/videos/Date03_Sub03_chairblack_lift.2.color.mp4
 
 set -e
@@ -30,7 +36,7 @@ outpath=output/coconet # Here cam_id indicates it will process <video_prefix>.<c
 # Step 6: run optimization
 video_prefix=$(basename "$video" | cut -d. -f1)
 echo $video_prefix
-python learning/training/opt_refineout.py num_steps=3000 w_acc_v=600 w_contact=300  save_name=optv2 batch_size=192 opt_rot=True \
+python learning/training/opt_refineout.py num_steps=3000 w_acc_v=600 w_contact=300  save_name=optv2 batch_size=64 opt_rot=True \
 opt_trans=True w_temp=1000 w_sil=0.002 w_contact=200.0 w_pen=2.0 w_j2d=0.03 opt_smpl_trans=False opt_betas=False  \
 pth_file=output/coconet/cari4d-release+step031397_demo/${video_prefix}.pth  \
 video_root=data/cari4d-demo/behave/videos/ \

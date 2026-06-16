@@ -2,6 +2,12 @@
 # Please follow ./docs/custom_videos.md to prepare data before running this script.
 # Required data before running: 1). Object mesh. 2). Masks of human and object. 3). openpose detections of the human. 
 
+export CUDA_VISIBLE_DEVICES="${CUDA_VISIBLE_DEVICES:-1}"
+export CUDA_DEVICE_ORDER="${CUDA_DEVICE_ORDER:-PCI_BUS_ID}"
+export CARI4D_RENDER_BATCH="${CARI4D_RENDER_BATCH:-8}"
+export CARI4D_MODEL_BATCH="${CARI4D_MODEL_BATCH:-128}"
+export CARI4D_OPT_VIZ_BATCH="${CARI4D_OPT_VIZ_BATCH:-64}"
+
 video=$1
 video_prefix=$(basename "$video" | cut -d. -f1)
 video_dir=$(dirname "$video")
@@ -35,23 +41,27 @@ python prep/fit_smplh_global.py --wild_video --video ${video} --packed_root ${pa
 # Step 4: align Unidepth to GENMO human
 python prep/align_monod2hum.py --wild_video --nlf_path ${nlf_path}-opt \
 --masks_root ${masks_root} \
---video ${video}
+--video ${video} \
+--render_chunk_size 8
 
 # Update the video path, pointing to the new video with aligned depth. 
 video=${video_dir}-aligned/${video_prefix}.0.color.mp4 
 
 # Step 5: estimate metric scale of the object 
+env PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True CARI4D_RENDER_BATCH="${CARI4D_RENDER_BATCH}" CARI4D_MODEL_BATCH="${CARI4D_MODEL_BATCH}" \
 python tools/estimate_scale_video.py --wild_video --video ${video} --masks_root ${masks_root} --hy3d_root ${hy3d_root} -o ${hy3d_root}-metric
 
 
 # Step 5: run FP in tracking mode
-python prep/fp_hy3d_track.py --viz_path x --wild_video --kid 0 \
+env PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True CARI4D_RENDER_BATCH="${CARI4D_RENDER_BATCH}" CARI4D_MODEL_BATCH="${CARI4D_MODEL_BATCH}" \
+python prep/fp_hy3d_track.py --viz_path x --vis_thres 0.5 --wild_video --kid 0 \
 --masks_root ${masks_root} --hy3d_root=${hy3d_root}-metric \
 --video ${video} -o ${fp_root}
 
 # Step 6: run CoCoNet to refine human + object
+env PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True \
 python run_horefine.py config=learning/configs/cari4d-release.yml split_file=splits/demo-behave.json \
-use_sel_view=True render_video=True identifier=_demo use_intermediate=False data_name=test-only \
+use_sel_view=True render_video=True identifier=_demo use_intermediate=True data_name=test-only \
 hy3d_meshes_root=${hy3d_root}-metric \
 masks_root=${masks_root} \
 fp_root=${fp_root} \
@@ -60,8 +70,9 @@ video=${video}  cam_id=0 wild_video=True \
 outpath=${coconet_out}
 
 # Step 7: run joint optimization
+env PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True CARI4D_OPT_VIZ_BATCH="${CARI4D_OPT_VIZ_BATCH}" \
 python learning/training/opt_refineout.py num_steps=3000 w_acc_v=600 w_contact=300  save_name=optv2 batch_size=64 opt_rot=True \
-opt_trans=True w_temp=1000 w_sil=0.002 w_contact=200.0 w_pen=2.0 w_j2d=0.006 opt_smpl_trans=False opt_betas=False  \
+opt_trans=True w_temp=1000 w_sil=0.002 w_contact=200.0 w_pen=2.0 w_j2d=0.03 opt_smpl_trans=False opt_betas=False  \
 pth_file=${coconet_out}/cari4d-release+step031397_demo/${video_prefix}.pth  wild_video=True use_input=True \
 video_root=$(dirname "$video") \
 packed_root=${packed_root} \

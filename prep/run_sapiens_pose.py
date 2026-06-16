@@ -30,6 +30,19 @@ import joblib
 from tqdm import tqdm
 import os.path as osp
 
+# xtcocotools in this env is ABI-incompatible with the installed numpy build.
+# mmpose only needs the COCO API here, so route those imports to pycocotools.
+import pycocotools
+import pycocotools.coco
+import pycocotools.cocoeval
+import pycocotools.mask
+import pycocotools._mask
+sys.modules.setdefault('xtcocotools', pycocotools)
+sys.modules.setdefault('xtcocotools.coco', pycocotools.coco)
+sys.modules.setdefault('xtcocotools.cocoeval', pycocotools.cocoeval)
+sys.modules.setdefault('xtcocotools.mask', pycocotools.mask)
+sys.modules.setdefault('xtcocotools._mask', pycocotools._mask)
+
 # Add sapiens pose to path
 SAPIENS_POSE_ROOT = osp.join(os.getcwd(), 'sapiens', 'pose')
 sys.path.insert(0, SAPIENS_POSE_ROOT)
