@@ -15,8 +15,9 @@ export CUDA_DEVICE_ORDER="${CUDA_DEVICE_ORDER:-PCI_BUS_ID}"
 export CARI4D_RENDER_BATCH="${CARI4D_RENDER_BATCH:-8}"
 export CARI4D_MODEL_BATCH="${CARI4D_MODEL_BATCH:-128}"
 export CARI4D_OPT_VIZ_BATCH="${CARI4D_OPT_VIZ_BATCH:-64}"
-VIDEO_IN="${PROJECT_ROOT}/flat_bike.mov"
-SEQ_NAME="flat_bike"
+export HF_TOKEN="${HF_TOKEN:-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}"
+VIDEO_IN="${PROJECT_ROOT}/bike_store.mov"
+SEQ_NAME="bike_store"
 
 # step 1: SAM3 masks
 SAM3_ENV="sam3"
@@ -48,7 +49,7 @@ SAPIENS_PACKED_OUT="${PACKED_ROOT}/${SEQ_NAME}_GT-packed.pkl"
 # step 4: full CARI4D pipeline
 CARI4D_RUNTIME="${CARI4D_RUNTIME:-conda}" # conda or docker
 CARI4D_DOCKER="cari4d"
-PIPELINE_SEQ_NAME="Date03_Sub01_bicycle"
+PIPELINE_SEQ_NAME="bike_store"
 WILD_VIDEO_DIR="${PROJECT_ROOT}/data/cari4d-demo/wild/videos"
 PIPELINE_VIDEO="${WILD_VIDEO_DIR}/${PIPELINE_SEQ_NAME}.0.color.mp4"
 PIPELINE_VIDEO_DIR="${WILD_VIDEO_DIR}"
